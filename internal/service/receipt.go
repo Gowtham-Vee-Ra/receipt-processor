@@ -84,7 +84,7 @@ func (s *ReceiptService) calculatePoints(receipt models.Receipt) int64 {
 
 	// Rule 2: 50 points if the total is a round dollar amount
 	total, _ := strconv.ParseFloat(receipt.Total, 64)
-	if total == float64(int64(total)) {
+	if math.Mod(total, 1.0) == 0 {
 		points += 50
 	}
 
@@ -96,22 +96,23 @@ func (s *ReceiptService) calculatePoints(receipt models.Receipt) int64 {
 	// Rule 4: 5 points for every two items
 	points += int64(len(receipt.Items) / 2 * 5)
 
-	// Rule 5: Items description length multiple of 3
+	// Rule 5: If the trimmed length of the item description is a multiple of 3,
+	// multiply the price by 0.2 and round up to the nearest integer
 	for _, item := range receipt.Items {
-		trimmedLen := len(strings.TrimSpace(item.ShortDescription))
-		if trimmedLen%3 == 0 {
+		trimmedDesc := strings.TrimSpace(item.ShortDescription)
+		if len(trimmedDesc)%3 == 0 {
 			price, _ := strconv.ParseFloat(item.Price, 64)
 			points += int64(math.Ceil(price * 0.2))
 		}
 	}
 
-	// Rule 6: 6 points if purchase date is odd
+	// Rule 6: 6 points if the day in the purchase date is odd
 	purchaseDate, _ := time.Parse("2006-01-02", receipt.PurchaseDate)
 	if purchaseDate.Day()%2 == 1 {
 		points += 6
 	}
 
-	// Rule 7: 10 points if purchase time is between 2:00pm and 4:00pm
+	// Rule 7: 10 points if the time of purchase is between 2:00pm and 4:00pm
 	purchaseTime, _ := time.Parse("15:04", receipt.PurchaseTime)
 	hour := purchaseTime.Hour()
 	if hour >= 14 && hour < 16 {
